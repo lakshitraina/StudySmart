@@ -2,6 +2,10 @@
 
 A simple, smart, and efficient study planner web application built with HTML, CSS, and Vanilla JavaScript.
 
+#Live Link
+
+https://study-smartt.netlify.app
+
 ## 🚀 Overview
 
 The **Smart Study Planner** helps students organize their subjects, plan their weekly schedules, manage tasks, and track their progress—all without needing a backend server. Data is stored locally in your browser, making it fast, secure, and easy to use.
