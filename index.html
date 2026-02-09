@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Study Planner</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="app-container">
+        <nav class="sidebar">
+            <div class="logo">
+                <h2>Study<span class="highlight">Smart</span></h2>
+            </div>
+            <ul class="nav-links">
+                <li class="active" data-section="dashboard">
+                    <span class="icon">🏠</span> Dashboard
+                </li>
+                <li data-section="subjects">
+                    <span class="icon">📚</span> Subjects
+                </li>
+                <li data-section="schedule">
+                    <span class="icon">📅</span> Schedule
+                </li>
+                <li data-section="tasks">
+                    <span class="icon">📝</span> Tasks
+                </li>
+                <li data-section="analytics">
+                    <span class="icon">📊</span> Analytics
+                </li>
+                <li data-section="settings">
+                    <span class="icon">⚙️</span> Settings
+                </li>
+            </ul>
+        </nav>
+
+
+        <main class="main-content">
+
+            <header>
+                <div class="header-title">
+                    <h1 id="page-title">Dashboard</h1>
+                    <p id="current-date">Fetching date...</p>
+                </div>
+                <div class="user-profile">
+                    <span class="user-greeting">Welcome back!</span>
+                </div>
+            </header>
+
+
+            <div id="content-area">
+
+
+                <section id="dashboard" class="active-section">
+                    <div class="summary-cards">
+                        <div class="card">
+                            <h3>Total Subjects</h3>
+                            <p class="big-number" id="dash-total-subjects">0</p>
+                        </div>
+                        <div class="card">
+                            <h3>Tasks Pending</h3>
+                            <p class="big-number" id="dash-pending-tasks">0</p>
+                        </div>
+                        <div class="card">
+                            <h3>Upcoming Exams</h3>
+                            <p class="big-number" id="dash-upcoming-exams">0</p>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-grid">
+                        <div class="card full-width">
+                            <h3>Today's Schedule</h3>
+                            <ul id="dash-today-schedule" class="list-group">
+                                <li class="empty-state">No classes scheduled for today.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+
+                <section id="subjects" class="hidden-section">
+                    <div class="section-controls">
+                        <button class="btn btn-primary" id="btn-add-subject">+ Add Subject</button>
+                    </div>
+                    <div class="grid-container" id="subjects-list">
+
+                    </div>
+                </section>
+
+
+                <section id="schedule" class="hidden-section">
+                    <div class="section-controls">
+                        <button class="btn btn-primary" id="btn-add-slot">+ Add Class Slot</button>
+                        <select id="schedule-day-filter" class="form-select">
+                            <option value="all">All Days</option>
+                            <option value="Monday">Monday</option>
+                            <option value="Tuesday">Tuesday</option>
+                            <option value="Wednesday">Wednesday</option>
+                            <option value="Thursday">Thursday</option>
+                            <option value="Friday">Friday</option>
+                            <option value="Saturday">Saturday</option>
+                            <option value="Sunday">Sunday</option>
+                        </select>
+                    </div>
+                    <div class="timetable-container" id="schedule-grid">
+
+                    </div>
+                </section>
+
+
+                <section id="tasks" class="hidden-section">
+                    <div class="section-controls">
+                        <button class="btn btn-primary" id="btn-add-task">+ Add Task</button>
+                        <div class="filters">
+                            <button class="filter-btn active" data-filter="all">All</button>
+                            <button class="filter-btn" data-filter="pending">Pending</button>
+                            <button class="filter-btn" data-filter="completed">Completed</button>
+                        </div>
+                    </div>
+                    <ul class="task-list" id="tasks-list">
+
+                    </ul>
+                </section>
+
+
+                <section id="analytics" class="hidden-section">
+                    <div class="analytics-container">
+                        <div class="card">
+                            <h3>Task Completion</h3>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar-fill" id="analytics-progress" style="width: 0%"></div>
+                            </div>
+                            <p id="analytics-text">0% Completed</p>
+                        </div>
+                        <div class="card">
+                            <h3>Study Distribution</h3>
+                            <div id="analytics-chart-placeholder" class="chart-placeholder">
+
+                                <div class="simple-bar-chart" id="subject-distribution-chart"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+
+                <section id="settings" class="hidden-section">
+                    <div class="card settings-card">
+                        <h3>Appearance</h3>
+                        <div class="setting-item">
+                            <label>Dark Mode</label>
+                            <label class="switch">
+                                <input type="checkbox" id="theme-toggle">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="card settings-card">
+                        <h3>Data Management</h3>
+                        <div class="setting-actions">
+                            <button class="btn btn-secondary" id="btn-export">Export Data (JSON)</button>
+                            <button class="btn btn-danger" id="btn-reset">Reset All Data</button>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+
+    <div id="modal-overlay" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modal-title">Modal Title</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary close-modal">Cancel</button>
+                <button class="btn btn-primary" id="modal-save-btn">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
