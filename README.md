@@ -28,17 +28,13 @@ The **Smart Study Planner** helps students organize their subjects, plan their w
 
 1. **Clone the Repository** (or download the ZIP):
    ```bash
-   git clone https://github.com/yourusername/smart-study-planner.git
+   git clone https://github.com/lakshitraina/StudySmart.git
    ```
 2. **Open the Application**:
    - Navigate to the project folder.
    - Open `index.html` in your web browser.
 
 No server or installation required!
-
-## 📸 Screenshots
-
-*(Add screenshots here)*
 
 ## 🤝 Contributing
 
