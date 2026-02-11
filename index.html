@@ -42,6 +42,9 @@
                 <li data-section="study-saathi">
                     <span class="icon">🤝</span> Study Saathi
                 </li>
+                <li data-section="shop">
+                    <span class="icon">🛍️</span> Shop
+                </li>
             </ul>
         </nav>
 
@@ -220,6 +223,28 @@
                                 style="grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));">
                                 <p>Loading users...</p>
                             </div>
+                        </div>
+                    </div>
+                </section>
+
+
+                <section id="shop" class="hidden-section">
+                    <div class="card full-width">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                            <h3>Study Store 🛍️</h3>
+                            <div class="user-points-badge" id="shop-user-points">You: 0 pts</div>
+                        </div>
+
+                        <div class="shop-tabs">
+                            <button class="filter-btn active" data-shop-tab="themes">Themes</button>
+                            <button class="filter-btn" data-shop-tab="borders">Borders</button>
+                            <button class="filter-btn" data-shop-tab="sounds">Sounds</button>
+                        </div>
+
+                        <div class="grid-container" id="shop-items"
+                            style="margin-top: 1.5rem; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
+                            <p>Loading shop...</p>
                         </div>
                     </div>
                 </section>
