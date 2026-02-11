@@ -250,7 +250,6 @@ header {
     align-items: center;
     margin-bottom: 2rem;
     gap: 2rem;
-    /* Increased gap as requested */
 }
 
 .analytics-container {
@@ -488,7 +487,6 @@ input:checked+.slider:before {
     outline: none;
 }
 
-/* Toast Notifications */
 #toast-container {
     position: fixed;
     top: 2rem;
@@ -546,7 +544,6 @@ input:checked+.slider:before {
     }
 }
 
-/* Pomodoro Timer */
 .timer-container {
     display: flex;
     flex-direction: column;
@@ -565,5 +562,194 @@ input:checked+.slider:before {
 
 .timer-controls {
     display: flex;
-    gap: 1rem;
+
+    #auth-container {
+        display: flex;
+        align-items: center;
+    }
+
+    #user-info {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    #user-avatar {
+        border: 2px solid var(--primary-color);
+    }
+}
+
+.leaderboard-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.leaderboard-table th,
+.leaderboard-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.leaderboard-table th {
+    color: var(--secondary-text);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.leaderboard-table tr:last-child td {
+    border-bottom: none;
+}
+
+.leaderboard-table tr:nth-child(1) td:first-child::before {
+    content: '🥇 ';
+}
+
+.leaderboard-table tr:nth-child(2) td:first-child::before {
+    content: '🥈 ';
+}
+
+.leaderboard-table tr:nth-child(3) td:first-child::before {
+    content: '🥉 ';
+}
+
+.user-points-badge {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.4);
+}
+
+.rank-badge {
+    font-weight: bold;
+    color: var(--text-color);
+}
+
+.student-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.student-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--border-color);
+}
+
+
+.current-user-row {
+    background-color: rgba(99, 102, 241, 0.1);
+}
+
+.saathi-user-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    transition: transform 0.2s;
+}
+
+.saathi-user-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.saathi-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    margin-bottom: 1rem;
+    object-fit: cover;
+    border: 3px solid var(--primary-color);
+}
+
+.saathi-name {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+}
+
+.saathi-status {
+    font-size: 0.85rem;
+    color: var(--success-color);
+    margin-bottom: 1rem;
+    min-height: 1.2em;
+}
+
+.invite-popup {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background-color: var(--card-bg);
+    border: 1px solid var(--primary-color);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    width: 320px;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.invite-header {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.invite-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.pulse-ring {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: var(--success-color);
+    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+    animation: pulse-green 2s infinite;
+}
+
+@keyframes pulse-green {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+    }
+
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
+    }
+
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+    }
 }
