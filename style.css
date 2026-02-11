@@ -687,7 +687,6 @@ input:checked+.slider:before {
     min-height: 1.2em;
 }
 
-/* Shop Styles */
 .shop-item-card {
     background-color: var(--card-bg);
     border: 1px solid var(--border-color);

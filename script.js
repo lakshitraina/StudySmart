@@ -1,3 +1,5 @@
+import { auth, provider, signInWithPopup, signOut, onAuthStateChanged, db, ref, set, onValue, get, child } from './firebase-config.js';
+
 const SHOP_ITEMS = {
     themes: [
         { id: 'light', name: 'Classic Light', price: 0, previewClass: 'preview-light' },
@@ -49,22 +51,23 @@ const DATA_STORE = {
                 if (val) {
                     this.data = val;
                 } else {
-                    this.data = {
-                        subjects: [],
-                        schedule: [],
-                        tasks: [],
-                        userPrefs: { theme: 'light' },
-                        points: 0
-                    };
+                    // Try to recover from LocalStorage if new user but has local data
+                    const local = localStorage.getItem('studySmartData');
+                    if (local) {
+                        try { this.data = JSON.parse(local); } catch (e) { this.data = this.getEmptyData(); }
+                    } else {
+                        this.data = this.getEmptyData();
+                    }
                     this.save();
                 }
+
                 this.ensureDataStructure();
                 APP.render();
             });
         } else {
             this.useFirebase = false;
             this.uid = null;
-            const stored = localStorage.getItem('studyPlannerData');
+            const stored = localStorage.getItem('studySmartData');
             if (stored) {
                 this.data = JSON.parse(stored);
             }
@@ -95,6 +98,8 @@ const DATA_STORE = {
                 console.log("Firebase Save Success");
             }).catch(e => console.error(e));
 
+            // Shadow Backup for compliance
+            try { localStorage.setItem('studySmartData', JSON.stringify(this.data)); } catch (e) { }
 
             if (APP.user) {
                 const leaderboardEntry = {
@@ -106,7 +111,7 @@ const DATA_STORE = {
                 set(ref(db, 'leaderboard/' + this.uid), leaderboardEntry);
             }
         } else {
-            localStorage.setItem('studyPlannerData', JSON.stringify(this.data));
+            localStorage.setItem('studySmartData', JSON.stringify(this.data));
         }
         APP.updatePointsUI();
     },
@@ -150,7 +155,7 @@ const DATA_STORE = {
 };
 
 
-import { auth, provider, signInWithPopup, signOut, onAuthStateChanged, db, ref, set, onValue, get, child } from './firebase-config.js';
+
 
 const APP = {
     dom: {},
@@ -1416,6 +1421,8 @@ const APP = {
     }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => APP.init());
+} else {
     APP.init();
-});
+}
