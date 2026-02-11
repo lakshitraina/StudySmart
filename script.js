@@ -1,3 +1,25 @@
+const SHOP_ITEMS = {
+    themes: [
+        { id: 'light', name: 'Classic Light', price: 0, previewClass: 'preview-light' },
+        { id: 'dark', name: 'Classic Dark', price: 0, previewClass: 'preview-dark' },
+        { id: 'cyberpunk', name: 'Cyberpunk Neon', price: 50, previewClass: 'preview-cyberpunk' },
+        { id: 'sunset', name: 'Sunset Vibes', price: 30, previewClass: 'preview-sunset' },
+        { id: 'matrix', name: 'Matrix Code', price: 100, previewClass: 'preview-matrix' }
+    ],
+    borders: [
+        { id: 'none', name: 'No Border', price: 0, previewClass: '' },
+        { id: 'gold', name: 'Golden Champion', price: 200, previewClass: 'border-gold' },
+        { id: 'fire', name: 'Fire Aura', price: 800, previewClass: 'border-fire' },
+        { id: 'diamond', name: 'Diamond Glint', price: 1500, previewClass: 'border-diamond' }
+    ],
+    sounds: [
+        { id: 'default', name: 'Standard Pop', price: 0 },
+        { id: 'retro', name: '8-Bit Coin', price: 100 },
+        { id: 'zen', name: 'Zen Bell', price: 150 },
+        { id: 'level-up', name: 'RPG Level Up', price: 300 }
+    ]
+};
+
 const DATA_STORE = {
     data: {
         subjects: [],
@@ -5,6 +27,12 @@ const DATA_STORE = {
         tasks: [],
         userPrefs: {
             theme: 'light'
+        },
+        inventory: ['light', 'dark', 'none', 'default'],
+        equipped: {
+            theme: 'light',
+            border: 'none',
+            sound: 'default'
         },
         points: 0
     },
@@ -51,7 +79,8 @@ const DATA_STORE = {
         if (!this.data.schedule) this.data.schedule = [];
         if (!this.data.tasks) this.data.tasks = [];
         if (!this.data.userPrefs) this.data.userPrefs = { theme: 'light' };
-
+        if (!this.data.inventory) this.data.inventory = ['light', 'dark', 'none', 'default'];
+        if (!this.data.equipped) this.data.equipped = { theme: 'light', border: 'none', sound: 'default' };
 
         if (typeof this.data.points !== 'number') {
             const parsed = parseInt(this.data.points, 10);
@@ -71,7 +100,8 @@ const DATA_STORE = {
                 const leaderboardEntry = {
                     name: APP.user.displayName,
                     photoURL: APP.user.photoURL,
-                    points: this.data.points
+                    points: this.data.points,
+                    equipped: this.data.equipped || { border: 'none' }
                 };
                 set(ref(db, 'leaderboard/' + this.uid), leaderboardEntry);
             }
@@ -89,9 +119,10 @@ const DATA_STORE = {
     },
 
     applyTheme() {
-        document.body.setAttribute('data-theme', this.data.userPrefs.theme);
+        const theme = this.data.equipped?.theme || this.data.userPrefs.theme || 'light';
+        document.body.setAttribute('data-theme', theme);
         const toggle = document.getElementById('theme-toggle');
-        if (toggle) toggle.checked = this.data.userPrefs.theme === 'dark';
+        if (toggle) toggle.checked = theme !== 'light';
     },
 
     reset() {
@@ -245,6 +276,63 @@ const APP = {
         intervalId: null
     },
 
+    playSound(type = 'success') {
+        let soundFile = '';
+        const equippedSound = DATA_STORE.data.equipped?.sound || 'default';
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        let freq = 440;
+        let typeWave = 'sine';
+        let duration = 0.1;
+
+        if (equippedSound === 'retro') {
+            typeWave = 'square';
+            freq = 600;
+            oscillator.frequency.setValueAtTime(600, audioCtx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+        } else if (equippedSound === 'zen') {
+            typeWave = 'sine';
+            freq = 300;
+            duration = 1.5;
+            gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5);
+        } else if (equippedSound === 'level-up') {
+            typeWave = 'triangle';
+            const now = audioCtx.currentTime;
+            [440, 554, 659, 880].forEach((f, i) => {
+                const osc = audioCtx.createOscillator();
+                const gn = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.value = f;
+                osc.connect(gn);
+                gn.connect(audioCtx.destination);
+                osc.start(now + i * 0.1);
+                osc.stop(now + i * 0.1 + 0.2);
+                gn.gain.setValueAtTime(0.1, now + i * 0.1);
+                gn.gain.linearRampToValueAtTime(0, now + i * 0.1 + 0.2);
+            });
+            return;
+        } else {
+            freq = 800;
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        }
+
+        if (equippedSound !== 'level-up') {
+            oscillator.type = typeWave;
+            if (equippedSound !== 'retro') oscillator.frequency.value = freq;
+
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + duration);
+        }
+    },
+
     toggleTimer() {
         const btn = document.getElementById('btn-timer-toggle');
 
@@ -267,6 +355,7 @@ const APP = {
                 } else {
                     this.toggleTimer();
                     this.showToast('Pomodoro session completed! Take a break.', 'success');
+                    this.playSound();
                     DATA_STORE.updatePoints(50);
                     this.timer.timeLeft = 25 * 60;
                     this.updateTimerDisplay();
@@ -483,6 +572,9 @@ const APP = {
             case 'schedule':
                 this.renderSchedule();
                 break;
+            case 'shop':
+                this.renderShop('themes');
+                break;
             case 'tasks':
                 this.renderTasks();
                 break;
@@ -525,11 +617,22 @@ const APP = {
 
                 const card = document.createElement('div');
                 card.className = 'saathi-user-card';
+
+                // Find border class
+                let borderClass = '';
+                if (u.equipped && u.equipped.border) {
+                    const borderItem = SHOP_ITEMS.borders.find(b => b.id === u.equipped.border);
+                    if (borderItem) borderClass = borderItem.previewClass;
+                }
+
                 card.innerHTML = `
-                    <img src="${u.photoURL || 'https://ui-avatars.com/api/?name=' + u.name}" class="saathi-avatar" alt="Avatar">
-                    <div class="saathi-name">${u.name}</div>
-                    <div class="saathi-status">Ready to study</div>
-                    <button class="btn btn-primary btn-sm btn-invite" data-uid="${u.uid}" data-name="${u.name}">Invite to Room</button>
+                    <div style="position:relative; display:inline-block;">
+                        <img src="${u.photoURL || 'https://ui-avatars.com/api/?name=' + u.name}" style="width:50px;height:50px;border-radius:50%;" class="${borderClass}">
+                        <div class="pulse-ring" style="position:absolute;bottom:0;right:0;width:12px;height:12px;border:2px solid var(--card-bg);"></div>
+                    </div>
+                    <h4>${u.name}</h4>
+                    <p style="font-size:0.8rem; color:var(--secondary-text); margin-bottom:1rem;">Ready to study!</p>
+                    <button class="btn btn-sm btn-primary btn-invite" data-uid="${u.uid}" data-name="${u.name}">Invite 📩</button>
                 `;
                 list.appendChild(card);
             });
@@ -545,6 +648,100 @@ const APP = {
                 });
             });
         }, { onlyOnce: true });
+    },
+
+    renderShop(tab = 'themes') {
+        const grid = document.getElementById('shop-items');
+        grid.innerHTML = '';
+
+        document.getElementById('shop-user-points').textContent = `You: ${DATA_STORE.data.points} pts`;
+
+        document.querySelectorAll('[data-shop-tab]').forEach(btn => {
+            if (btn.dataset.shopTab === tab) btn.classList.add('active');
+            else btn.classList.remove('active');
+        });
+
+        const items = SHOP_ITEMS[tab];
+        if (!items) return;
+
+        items.forEach(item => {
+            const owned = DATA_STORE.data.inventory.includes(item.id);
+            const key = tab.slice(0, -1);
+            const equipped = DATA_STORE.data.equipped[key] === item.id;
+
+            const card = document.createElement('div');
+            card.className = 'shop-item-card';
+
+            let actionBtn = '';
+            if (equipped) {
+                actionBtn = `<button class="btn btn-success btn-sm" disabled>Equipped</button>`;
+            } else if (owned) {
+                actionBtn = `<button class="btn btn-secondary btn-sm btn-equip" data-cat="${tab}" data-id="${item.id}">Equip</button>`;
+            } else {
+                actionBtn = `<button class="btn btn-primary btn-sm btn-buy" data-cat="${tab}" data-id="${item.id}" data-price="${item.price}">Buy</button>`;
+            }
+
+            let previewHTML = '';
+            if (tab === 'themes') {
+                previewHTML = `<div class="shop-item-preview ${item.previewClass}">Aa</div>`;
+            } else if (tab === 'borders') {
+                previewHTML = `<div class="shop-item-preview"><img src="${this.user ? this.user.photoURL : 'https://ui-avatars.com/api/?name=User'}" class="${item.previewClass}" style="width:48px;height:48px;border-radius:50%;"></div>`;
+            } else {
+                previewHTML = `<div class="shop-item-preview">🎵</div>`;
+            }
+
+            card.innerHTML = `
+                ${previewHTML}
+                <div style="font-weight:600;">${item.name}</div>
+                <div class="shop-item-price">${item.price === 0 ? 'Free' : item.price + ' pts'}</div>
+                ${actionBtn}
+            `;
+            grid.appendChild(card);
+        });
+
+        // Attach events
+        grid.querySelectorAll('.btn-buy').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.buyItem(btn.dataset.id, parseInt(btn.dataset.price), btn.dataset.cat);
+            });
+        });
+
+        grid.querySelectorAll('.btn-equip').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.equipItem(btn.dataset.id, btn.dataset.cat);
+            });
+        });
+
+        // Tab events
+        document.querySelectorAll('[data-shop-tab]').forEach(btn => {
+            btn.onclick = () => this.renderShop(btn.dataset.shopTab);
+        });
+    },
+
+    buyItem(id, price, category) {
+        if (DATA_STORE.data.points >= price) {
+            DATA_STORE.updatePoints(-price);
+            DATA_STORE.data.inventory.push(id);
+            DATA_STORE.save();
+            this.showToast('Item Purchased!', 'success');
+            this.renderShop(category);
+        } else {
+            this.showToast(`Not enough points! Need ${price - DATA_STORE.data.points} more.`, 'error');
+        }
+    },
+
+    equipItem(id, category) {
+        const key = category.slice(0, -1);
+        DATA_STORE.data.equipped[key] = id;
+
+        if (key === 'theme') {
+            DATA_STORE.data.userPrefs.theme = id;
+            DATA_STORE.applyTheme();
+        }
+
+        DATA_STORE.save();
+        this.showToast('Equipped!', 'success');
+        this.renderShop(category);
     },
 
     activeRoomLink: null,
@@ -650,11 +847,18 @@ const APP = {
                 const tr = document.createElement('tr');
                 if (isCurrentUser) tr.className = 'current-user-row';
 
+                // Find border class
+                let borderClass = '';
+                if (user.equipped && user.equipped.border) {
+                    const borderItem = SHOP_ITEMS.borders.find(b => b.id === user.equipped.border);
+                    if (borderItem) borderClass = borderItem.previewClass;
+                }
+
                 tr.innerHTML = `
                     <td><span class="rank-badge">#${index + 1}</span></td>
                     <td>
                         <div class="student-info">
-                            <img src="${user.photoURL || 'https://ui-avatars.com/api/?name=' + user.name}" class="student-avatar" alt="Avatar">
+                            <img src="${user.photoURL || 'https://ui-avatars.com/api/?name=' + user.name}" class="student-avatar ${borderClass}" alt="Avatar">
                             <span>${user.name} ${isCurrentUser ? '(You)' : ''}</span>
                         </div>
                     </td>
@@ -1103,10 +1307,12 @@ const APP = {
 
             // Points Logic
             if (task.isCompleted) {
+                // Award points
                 const subject = DATA_STORE.data.subjects.find(s => s.id === task.subjectId);
                 let points = 10;
                 if (subject && subject.priority === 'High') points = 20;
                 DATA_STORE.updatePoints(points);
+                APP.playSound(); // Play sound
             } else {
                 const subject = DATA_STORE.data.subjects.find(s => s.id === task.subjectId);
                 let points = 10;
