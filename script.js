@@ -31,6 +31,7 @@ const APP = {
     init() {
         DATA_STORE.load();
         this.cacheDOM();
+        this.initToasts();
         this.bindEvents();
         this.render();
         this.updateDate();
@@ -50,6 +51,104 @@ const APP = {
             dashboardExams: document.getElementById('dash-upcoming-exams'),
             dashboardSchedule: document.getElementById('dash-today-schedule'),
         };
+    },
+
+
+
+    initToasts() {
+        if (!document.getElementById('toast-container')) {
+            const container = document.createElement('div');
+            container.id = 'toast-container';
+            document.body.appendChild(container);
+        }
+        this.dom.toastContainer = document.getElementById('toast-container');
+    },
+
+    // Pomodoro Timer Logic
+    timer: {
+        timeLeft: 25 * 60,
+        isRunning: false,
+        intervalId: null
+    },
+
+    toggleTimer() {
+        const btn = document.getElementById('btn-timer-toggle');
+
+        if (this.timer.isRunning) {
+            // Pause
+            clearInterval(this.timer.intervalId);
+            this.timer.isRunning = false;
+            btn.textContent = 'Start Focus';
+            btn.classList.replace('btn-danger', 'btn-primary');
+        } else {
+            // Start
+            this.timer.isRunning = true;
+            btn.textContent = 'Pause Focus';
+            btn.classList.replace('btn-primary', 'btn-danger');
+
+            this.timer.intervalId = setInterval(() => {
+                if (this.timer.timeLeft > 0) {
+                    this.timer.timeLeft--;
+                    this.updateTimerDisplay();
+                } else {
+                    this.toggleTimer(); // Stop
+                    this.showToast('Pomodoro session completed! Take a break.', 'success');
+                    this.timer.timeLeft = 25 * 60;
+                    this.updateTimerDisplay();
+                }
+            }, 1000);
+        }
+    },
+
+    resetTimer() {
+        if (this.timer.isRunning) this.toggleTimer();
+        this.timer.timeLeft = 25 * 60;
+        this.updateTimerDisplay();
+    },
+
+    updateTimerDisplay() {
+        const m = Math.floor(this.timer.timeLeft / 60);
+        const s = this.timer.timeLeft % 60;
+        const display = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        document.getElementById('timer-display').textContent = display;
+    },
+
+    showToast(message, type = 'info') {
+        if (!this.dom.toastContainer) this.initToasts();
+
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+
+        const icons = {
+            success: '✅',
+            error: '❌',
+            info: 'ℹ️',
+            warning: '⚠️'
+        };
+
+        toast.innerHTML = `
+            <span class="icon">${icons[type] || icons.info}</span>
+            <span>${message}</span>
+        `;
+
+        this.dom.toastContainer.appendChild(toast);
+
+        // Remove after 3 seconds
+        const timeout = setTimeout(() => {
+            removeToast();
+        }, 3000);
+
+        const removeToast = () => {
+            toast.style.animation = 'fadeOut 0.3s ease-out forwards';
+            toast.addEventListener('animationend', () => {
+                if (toast.parentElement) toast.remove();
+            });
+        };
+
+        toast.addEventListener('click', () => {
+            clearTimeout(timeout);
+            removeToast();
+        });
     },
 
     bindEvents() {
@@ -121,6 +220,14 @@ const APP = {
             if (confirm('Are you sure you want to reset all data? This cannot be undone.')) {
                 DATA_STORE.reset();
             }
+        });
+
+        document.getElementById('btn-timer-toggle').addEventListener('click', () => {
+            this.toggleTimer();
+        });
+
+        document.getElementById('btn-timer-reset').addEventListener('click', () => {
+            this.resetTimer();
         });
     },
 
@@ -250,7 +357,7 @@ const APP = {
             </div>
             <div class="form-group">
                 <label>Priority</label>
-                <select id="input-subject-priority" class="form-control">
+                <select id="input-subject-priority" class="form-select">
                     <option value="High">High</option>
                     <option value="Medium" selected>Medium</option>
                     <option value="Low">Low</option>
@@ -269,7 +376,7 @@ const APP = {
             const priority = document.getElementById('input-subject-priority').value;
             const color = document.getElementById('input-subject-color').value;
 
-            if (!name) return alert('Please enter a subject name');
+            if (!name) return this.showToast('Please enter a subject name', 'error');
 
             const newSubject = {
                 id: Date.now().toString(),
@@ -296,7 +403,7 @@ const APP = {
             </div>
             <div class="form-group">
                 <label>Priority</label>
-                <select id="input-subject-priority" class="form-control">
+                <select id="input-subject-priority" class="form-select">
                     <option value="High" ${subject.priority === 'High' ? 'selected' : ''}>High</option>
                     <option value="Medium" ${subject.priority === 'Medium' ? 'selected' : ''}>Medium</option>
                     <option value="Low" ${subject.priority === 'Low' ? 'selected' : ''}>Low</option>
@@ -315,7 +422,7 @@ const APP = {
             const priority = document.getElementById('input-subject-priority').value;
             const color = document.getElementById('input-subject-color').value;
 
-            if (!name) return alert('Please enter a subject name');
+            if (!name) return this.showToast('Please enter a subject name', 'error');
 
             subject.name = name;
             subject.priority = priority;
@@ -407,7 +514,7 @@ const APP = {
 
     openAddSlotsModal() {
         if (DATA_STORE.data.subjects.length === 0) {
-            return alert('Please add subjects before creating a schedule.');
+            return this.showToast('Please add subjects before creating a schedule.', 'info');
         }
 
         const subjectOptions = DATA_STORE.data.subjects.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
@@ -415,13 +522,13 @@ const APP = {
         const formHTML = `
             <div class="form-group">
                 <label>Subject</label>
-                <select id="input-slot-subject" class="form-control">
+                <select id="input-slot-subject" class="form-select">
                     ${subjectOptions}
                 </select>
             </div>
             <div class="form-group">
                 <label>Day</label>
-                <select id="input-slot-day" class="form-control">
+                <select id="input-slot-day" class="form-select">
                     <option value="Monday">Monday</option>
                     <option value="Tuesday">Tuesday</option>
                     <option value="Wednesday">Wednesday</option>
@@ -451,8 +558,8 @@ const APP = {
             const start = document.getElementById('input-slot-start').value;
             const end = document.getElementById('input-slot-end').value;
 
-            if (!start || !end) return alert('Please select start and end times.');
-            if (start >= end) return alert('Start time must be before end time.');
+            if (!start || !end) return this.showToast('Please select start and end times.', 'error');
+            if (start >= end) return this.showToast('Start time must be before end time.', 'error');
 
             const conflict = DATA_STORE.data.schedule.find(s =>
                 s.day === day &&
@@ -462,7 +569,7 @@ const APP = {
             );
 
             if (conflict) {
-                return alert('Time conflict with an existing class!');
+                return this.showToast('Time conflict with an existing class!', 'error');
             }
 
             const newSlot = {
@@ -555,7 +662,7 @@ const APP = {
 
     openAddTaskModal() {
         if (DATA_STORE.data.subjects.length === 0) {
-            return alert('Please add subjects first.');
+            return this.showToast('Please add subjects first.', 'info');
         }
 
         const subjectOptions = DATA_STORE.data.subjects.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
@@ -567,13 +674,13 @@ const APP = {
             </div>
             <div class="form-group">
                 <label>Subject</label>
-                <select id="input-task-subject" class="form-control">
+                <select id="input-task-subject" class="form-select">
                     ${subjectOptions}
                 </select>
             </div>
             <div class="form-group">
                 <label>Type</label>
-                <select id="input-task-type" class="form-control">
+                <select id="input-task-type" class="form-select">
                     <option value="Assignment">Assignment</option>
                     <option value="Exam">Exam</option>
                     <option value="Project">Project</option>
@@ -594,7 +701,7 @@ const APP = {
             const type = document.getElementById('input-task-type').value;
             const dueDate = document.getElementById('input-task-date').value;
 
-            if (!title || !dueDate) return alert('Please fill in all fields.');
+            if (!title || !dueDate) return this.showToast('Please fill in all fields.', 'error');
 
             const newTask = {
                 id: Date.now().toString(),
