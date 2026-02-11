@@ -36,6 +36,12 @@
                 <li data-section="settings">
                     <span class="icon">⚙️</span> Settings
                 </li>
+                <li data-section="leaderboard">
+                    <span class="icon">🏆</span> Leaderboard
+                </li>
+                <li data-section="study-saathi">
+                    <span class="icon">🤝</span> Study Saathi
+                </li>
             </ul>
         </nav>
 
@@ -48,7 +54,19 @@
                     <p id="current-date">Fetching date...</p>
                 </div>
                 <div class="user-profile">
-                    <span class="user-greeting">Welcome back!</span>
+                    <div class="user-points-badge" id="current-user-points" style="margin-right: 1rem; display: none;">
+                        You: 0 pts</div>
+                    <div id="auth-container">
+                        <button id="btn-login" class="btn btn-primary">
+                            <span class="icon">G</span> Sign in with Google
+                        </button>
+                    </div>
+                    <div id="user-info" style="display: none; align-items: center; gap: 1rem;">
+                        <img id="user-avatar" src="" alt="User" style="width: 32px; height: 32px; border-radius: 50%;">
+                        <span id="user-name" class="user-greeting">Guest</span>
+                        <button id="btn-logout" class="btn btn-sm btn-secondary"
+                            style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Logout</button>
+                    </div>
                 </div>
             </header>
 
@@ -158,6 +176,55 @@
                 </section>
 
 
+                <section id="leaderboard" class="hidden-section">
+                    <div class="card full-width">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                            <h3>Top Learners 🏆</h3>
+                            <div class="user-points-badge" id="current-user-points">
+                                You: 0 pts
+                            </div>
+                        </div>
+                        <div class="leaderboard-container">
+                            <table class="leaderboard-table">
+                                <thead>
+                                    <tr>
+                                        <th width="10%">Rank</th>
+                                        <th>Student</th>
+                                        <th width="20%" style="text-align: right;">Points</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="leaderboard-list">
+                                    <tr class="empty-state">
+                                        <td colspan="3">Loading leaderboard...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+
+                <section id="study-saathi" class="hidden-section">
+                    <div class="card full-width">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                            <h3>Study Saathi 🤝</h3>
+                            <button class="btn btn-primary" id="btn-start-room">🎥 Start Study Room</button>
+                        </div>
+
+                        <div class="saathi-container">
+                            <p style="margin-bottom: 1rem; color: var(--secondary-text);">Invite friends to study
+                                together! <strong>+10 Points</strong> for hosting a session.</p>
+                            <div class="grid-container" id="saathi-list"
+                                style="grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));">
+                                <p>Loading users...</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+
                 <section id="settings" class="hidden-section">
                     <div class="card settings-card">
                         <h3>Appearance</h3>
@@ -199,7 +266,28 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script>
+        window.addEventListener('error', function (e) {
+            console.error('Global Error:', e);
+            if (e.message.includes('module') || e.message.includes('import') || !e.message) {
+                const overlay = document.createElement('div');
+                overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);color:white;display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:9999;text-align:center;padding:2rem;font-family:sans-serif;';
+                overlay.innerHTML = `
+                    <h2 style="color:#ff6b6b;margin-bottom:1rem;">⚠️ Application Custom Error</h2>
+                    <p style="font-size:1.2rem;margin-bottom:2rem;">The app cannot load because it is being opened as a file.</p>
+                    <p>Firebase and Modules require a local web server.</p>
+                    <div style="background:#333;padding:1rem;border-radius:8px;text-align:left;">
+                        <p style="margin:0.5rem 0;">Option 1: Run <code>npx serve</code> in terminal</p>
+                        <p style="margin:0.5rem 0;">Option 2: Run <code>python serve.py</code> (I've created this file for you)</p>
+                        <p style="margin:0.5rem 0;">Option 3: Use "Live Server" extension in VS Code</p>
+                    </div>
+                    <button onclick="location.reload()" style="margin-top:2rem;padding:0.75rem 1.5rem;cursor:pointer;">Reload</button>
+                `;
+                document.body.appendChild(overlay);
+            }
+        });
+    </script>
+    <script type="module" src="script.js"></script>
 </body>
 
 </html>
