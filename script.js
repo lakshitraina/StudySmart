@@ -1,39 +1,136 @@
 const DATA_STORE = {
-    key: 'studyPlannerData',
     data: {
         subjects: [],
         schedule: [],
         tasks: [],
-        preferences: {
+        userPrefs: {
             theme: 'light'
+        },
+        points: 0
+    },
+    useFirebase: false,
+    uid: null,
+
+    load(uid = null) {
+        if (uid) {
+            this.useFirebase = true;
+            this.uid = uid;
+            const userRef = ref(db, 'users/' + uid);
+            onValue(userRef, (snapshot) => {
+                const val = snapshot.val();
+                if (val) {
+                    this.data = val;
+                } else {
+                    this.data = {
+                        subjects: [],
+                        schedule: [],
+                        tasks: [],
+                        userPrefs: { theme: 'light' },
+                        points: 0
+                    };
+                    this.save();
+                }
+                this.ensureDataStructure();
+                APP.render();
+            });
+        } else {
+            this.useFirebase = false;
+            this.uid = null;
+            const stored = localStorage.getItem('studyPlannerData');
+            if (stored) {
+                this.data = JSON.parse(stored);
+            }
+            this.ensureDataStructure();
+            APP.render();
         }
+        this.applyTheme();
     },
 
-    load() {
-        const stored = localStorage.getItem(this.key);
-        if (stored) {
-            this.data = JSON.parse(stored);
+    ensureDataStructure() {
+        if (!this.data.subjects) this.data.subjects = [];
+        if (!this.data.schedule) this.data.schedule = [];
+        if (!this.data.tasks) this.data.tasks = [];
+        if (!this.data.userPrefs) this.data.userPrefs = { theme: 'light' };
+
+
+        if (typeof this.data.points !== 'number') {
+            const parsed = parseInt(this.data.points, 10);
+            this.data.points = isNaN(parsed) ? 0 : parsed;
         }
-        APP.applyTheme();
     },
 
     save() {
-        localStorage.setItem(this.key, JSON.stringify(this.data));
+        console.log("Saving Data:", this.data);
+        if (this.useFirebase && this.uid) {
+            set(ref(db, 'users/' + this.uid), this.data).then(() => {
+                console.log("Firebase Save Success");
+            }).catch(e => console.error(e));
+
+
+            if (APP.user) {
+                const leaderboardEntry = {
+                    name: APP.user.displayName,
+                    photoURL: APP.user.photoURL,
+                    points: this.data.points
+                };
+                set(ref(db, 'leaderboard/' + this.uid), leaderboardEntry);
+            }
+        } else {
+            localStorage.setItem('studyPlannerData', JSON.stringify(this.data));
+        }
+        APP.updatePointsUI();
+    },
+
+    updatePoints(amount) {
+        this.data.points = (this.data.points || 0) + amount;
+        this.save();
+        const msg = amount > 0 ? `+${amount} Points!` : `${amount} Points`;
+        APP.showToast(msg, amount > 0 ? 'success' : 'info');
+    },
+
+    applyTheme() {
+        document.body.setAttribute('data-theme', this.data.userPrefs.theme);
+        const toggle = document.getElementById('theme-toggle');
+        if (toggle) toggle.checked = this.data.userPrefs.theme === 'dark';
     },
 
     reset() {
-        localStorage.removeItem(this.key);
-        location.reload();
+        this.data = {
+            subjects: [],
+            schedule: [],
+            tasks: [],
+            userPrefs: { theme: 'light' },
+            points: 0
+        };
+        this.save();
+        APP.render();
+        APP.showToast('All data has been reset.', 'info');
+    },
+
+    exportData() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.data));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", "study_planner_backup.json");
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
     }
 };
 
+
+import { auth, provider, signInWithPopup, signOut, onAuthStateChanged, db, ref, set, onValue, get, child } from './firebase-config.js';
+
 const APP = {
+    dom: {},
+    currentSaveAction: null,
+    user: null,
+
     init() {
-        DATA_STORE.load();
         this.cacheDOM();
         this.initToasts();
         this.bindEvents();
-        this.render();
+        this.initAuth();
         this.updateDate();
     },
 
@@ -50,7 +147,84 @@ const APP = {
             dashboardPending: document.getElementById('dash-pending-tasks'),
             dashboardExams: document.getElementById('dash-upcoming-exams'),
             dashboardSchedule: document.getElementById('dash-today-schedule'),
+            authContainer: document.getElementById('auth-container'),
+            userInfo: document.getElementById('user-info'),
+            userAvatar: document.getElementById('user-avatar'),
+            userName: document.getElementById('user-name'),
+            btnLogin: document.getElementById('btn-login'),
+            btnLogout: document.getElementById('btn-logout'),
         };
+    },
+
+    initAuth() {
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                this.user = user;
+                this.updateAuthUI(true);
+                this.showToast(`Welcome back, ${user.displayName.split(' ')[0]}!`, 'success');
+                DATA_STORE.load(user.uid);
+                this.listenForInvites();
+            } else {
+                this.user = null;
+                this.updateAuthUI(false);
+                DATA_STORE.load(null);
+            }
+        });
+    },
+
+    listenForInvites() {
+        if (!this.user) return;
+        const invitesRef = ref(db, 'invites/' + this.user.uid);
+        onValue(invitesRef, (snapshot) => {
+            const invite = snapshot.val();
+            if (invite) {
+                this.showInvitePopup(invite);
+            }
+        });
+    },
+
+    showInvitePopup(invite) {
+        const existing = document.getElementById('invite-popup');
+        if (existing) existing.remove();
+
+        const popup = document.createElement('div');
+        popup.id = 'invite-popup';
+        popup.className = 'invite-popup';
+        popup.innerHTML = `
+            <div class="invite-header">
+                <span class="pulse-ring"></span>
+                <span>Study Invitation!</span>
+            </div>
+            <p><strong>${invite.senderName}</strong> invited you to a study room.</p>
+            <div class="invite-actions">
+                <button class="btn btn-success btn-sm" id="btn-accept-invite">Accept & Join</button>
+                <button class="btn btn-secondary btn-sm" id="btn-decline-invite">Decline</button>
+            </div>
+        `;
+        document.body.appendChild(popup);
+
+        document.getElementById('btn-accept-invite').onclick = () => {
+            window.open(invite.roomLink, '_blank');
+            set(ref(db, 'invites/' + this.user.uid), null);
+            popup.remove();
+        };
+
+        document.getElementById('btn-decline-invite').onclick = () => {
+            set(ref(db, 'invites/' + this.user.uid), null);
+            popup.remove();
+        };
+    },
+
+    updateAuthUI(isSignedIn) {
+        if (isSignedIn) {
+            this.dom.authContainer.style.display = 'none';
+            this.dom.userInfo.style.display = 'flex';
+            this.dom.userAvatar.src = this.user.photoURL;
+            this.dom.userName.textContent = this.user.displayName;
+        } else {
+            this.dom.userInfo.style.display = 'none';
+            this.dom.authContainer.style.display = 'flex';
+        }
     },
 
 
@@ -64,7 +238,7 @@ const APP = {
         this.dom.toastContainer = document.getElementById('toast-container');
     },
 
-    // Pomodoro Timer Logic
+
     timer: {
         timeLeft: 25 * 60,
         isRunning: false,
@@ -75,13 +249,13 @@ const APP = {
         const btn = document.getElementById('btn-timer-toggle');
 
         if (this.timer.isRunning) {
-            // Pause
+
             clearInterval(this.timer.intervalId);
             this.timer.isRunning = false;
             btn.textContent = 'Start Focus';
             btn.classList.replace('btn-danger', 'btn-primary');
         } else {
-            // Start
+
             this.timer.isRunning = true;
             btn.textContent = 'Pause Focus';
             btn.classList.replace('btn-primary', 'btn-danger');
@@ -91,8 +265,9 @@ const APP = {
                     this.timer.timeLeft--;
                     this.updateTimerDisplay();
                 } else {
-                    this.toggleTimer(); // Stop
+                    this.toggleTimer();
                     this.showToast('Pomodoro session completed! Take a break.', 'success');
+                    DATA_STORE.updatePoints(50);
                     this.timer.timeLeft = 25 * 60;
                     this.updateTimerDisplay();
                 }
@@ -133,7 +308,6 @@ const APP = {
 
         this.dom.toastContainer.appendChild(toast);
 
-        // Remove after 3 seconds
         const timeout = setTimeout(() => {
             removeToast();
         }, 3000);
@@ -152,19 +326,52 @@ const APP = {
     },
 
     bindEvents() {
-        this.dom.navLinks.forEach(link => {
-            link.addEventListener('click', (e) => {
-                const section = e.currentTarget.dataset.section;
-                this.navTo(section);
+        this.dom.btnLogin.addEventListener('click', () => {
+            signInWithPopup(auth, provider).catch((error) => {
+                this.showToast('Login failed: ' + error.message, 'error');
             });
         });
 
-        this.dom.themeToggle.checked = DATA_STORE.data.preferences.theme === 'dark';
-        this.dom.themeToggle.addEventListener('change', (e) => {
-            const newTheme = e.target.checked ? 'dark' : 'light';
-            DATA_STORE.data.preferences.theme = newTheme;
+        this.dom.btnLogout.addEventListener('click', () => {
+            signOut(auth).then(() => {
+                this.showToast('Logged out successfully.', 'info');
+            }).catch((error) => {
+                this.showToast('Logout failed: ' + error.message, 'error');
+            });
+        });
+
+        this.dom.navLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                this.navTo(link.dataset.section);
+            });
+        });
+
+        setInterval(() => this.updateDate, 60000);
+
+        this.dom.themeToggle.addEventListener('change', () => {
+            const theme = this.dom.themeToggle.checked ? 'dark' : 'light';
+            document.body.setAttribute('data-theme', theme);
+            DATA_STORE.data.userPrefs.theme = theme;
             DATA_STORE.save();
-            this.applyTheme();
+        });
+
+
+        document.getElementById('btn-export').addEventListener('click', () => {
+            DATA_STORE.exportData();
+        });
+
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            if (confirm('Are you sure you want to reset all data? This cannot be undone.')) {
+                DATA_STORE.reset();
+            }
+        });
+
+        document.getElementById('btn-timer-toggle').addEventListener('click', () => {
+            this.toggleTimer();
+        });
+
+        document.getElementById('btn-timer-reset').addEventListener('click', () => {
+            this.resetTimer();
         });
 
         this.dom.closeModalButtons.forEach(btn => {
@@ -212,6 +419,10 @@ const APP = {
             this.openAddTaskModal();
         });
 
+        document.getElementById('btn-start-room').addEventListener('click', () => {
+            this.startStudyRoom();
+        });
+
         document.getElementById('btn-export').addEventListener('click', () => {
             this.exportData();
         });
@@ -222,13 +433,6 @@ const APP = {
             }
         });
 
-        document.getElementById('btn-timer-toggle').addEventListener('click', () => {
-            this.toggleTimer();
-        });
-
-        document.getElementById('btn-timer-reset').addEventListener('click', () => {
-            this.resetTimer();
-        });
     },
 
     navTo(sectionId) {
@@ -285,7 +489,180 @@ const APP = {
             case 'analytics':
                 this.renderAnalytics();
                 break;
+            case 'settings':
+                this.updatePointsUI();
+                break;
+            case 'leaderboard':
+                this.renderLeaderboard();
+                break;
+            case 'study-saathi':
+                this.renderStudySaathi();
+                break;
         }
+    },
+
+    renderStudySaathi() {
+        const list = document.getElementById('saathi-list');
+        list.innerHTML = '<p>Loading active learners...</p>';
+
+        const usersRef = ref(db, 'leaderboard');
+        onValue(usersRef, (snapshot) => {
+            const data = snapshot.val();
+            list.innerHTML = '';
+
+            if (!data) {
+                list.innerHTML = '<p>No users found yet.</p>';
+                return;
+            }
+
+            const users = Object.keys(data).map(key => ({
+                uid: key,
+                ...data[key]
+            }));
+
+            users.forEach(u => {
+                if (this.user && u.uid === this.user.uid) return;
+
+                const card = document.createElement('div');
+                card.className = 'saathi-user-card';
+                card.innerHTML = `
+                    <img src="${u.photoURL || 'https://ui-avatars.com/api/?name=' + u.name}" class="saathi-avatar" alt="Avatar">
+                    <div class="saathi-name">${u.name}</div>
+                    <div class="saathi-status">Ready to study</div>
+                    <button class="btn btn-primary btn-sm btn-invite" data-uid="${u.uid}" data-name="${u.name}">Invite to Room</button>
+                `;
+                list.appendChild(card);
+            });
+
+            if (list.children.length === 0) {
+                list.innerHTML = '<p>No other learners online right now.</p>';
+            }
+
+
+            document.querySelectorAll('.btn-invite').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    this.inviteUser(e.target.dataset.uid, e.target.dataset.name);
+                });
+            });
+        }, { onlyOnce: true });
+    },
+
+    activeRoomLink: null,
+
+    startStudyRoom() {
+        if (!this.user) return this.showToast('Please login to start a room', 'error');
+
+        const btn = document.getElementById('btn-start-room');
+
+
+        if (this.activeRoomLink) {
+
+            this.activeRoomLink = null;
+            btn.textContent = '🎥 Start Study Room';
+            btn.classList.replace('btn-danger', 'btn-primary');
+            DATA_STORE.updatePoints(10);
+            this.showToast('Session Ended. +10 Points!', 'success');
+            return;
+        }
+
+
+        window.open('https://meet.google.com/new', '_blank');
+
+        const formHTML = `
+            <div class="form-group">
+                <label>Paste the Google Meet Link you just created:</label>
+                <input type="text" id="input-meet-link" class="form-control" placeholder="https://meet.google.com/...">
+            </div>
+            <p style="font-size: 0.9rem; color: var(--secondary-text);">
+                1. A Google Meet tab has been opened.<br>
+                2. Copy the meeting link.<br>
+                3. Paste it here to invite friends.
+            </p>
+        `;
+
+        this.openModal('Start Study Room', formHTML);
+
+        this.currentSaveAction = () => {
+            const link = document.getElementById('input-meet-link').value;
+            if (!link) return this.showToast('Please paste the link', 'error');
+
+            this.activeRoomLink = link;
+            btn.textContent = '⏹ End Session';
+            btn.classList.replace('btn-primary', 'btn-danger');
+
+            this.showToast('Room Active! Invite friends now.', 'success');
+            this.closeModal();
+        };
+    },
+
+    inviteUser(uid, name) {
+        if (!this.activeRoomLink) {
+            return this.showToast('Please "Start Study Room" first!', 'warning');
+        }
+
+        const inviteData = {
+            senderId: this.user.uid,
+            senderName: this.user.displayName,
+            roomLink: this.activeRoomLink,
+            timestamp: Date.now()
+        };
+
+        set(ref(db, 'invites/' + uid), inviteData)
+            .then(() => this.showToast(`Invited ${name}!`, 'success'))
+            .catch(e => this.showToast('Failed to invite: ' + e.message, 'error'));
+    },
+
+    updatePointsUI() {
+        const points = DATA_STORE.data.points || 0;
+        const badge = document.getElementById('current-user-points');
+        if (badge) badge.textContent = `You: ${points} pts`;
+    },
+
+    renderLeaderboard() {
+        this.updatePointsUI();
+        const list = document.getElementById('leaderboard-list');
+        list.innerHTML = '<tr><td colspan="3" style="text-align:center;">Loading...</td></tr>';
+
+
+        const leaderboardRef = ref(db, 'leaderboard');
+
+
+        onValue(leaderboardRef, (snapshot) => {
+            const data = snapshot.val();
+            list.innerHTML = '';
+
+            if (!data) {
+                list.innerHTML = '<tr class="empty-state"><td colspan="3">No champions yet. Be the first!</td></tr>';
+                return;
+            }
+
+
+            const users = Object.keys(data).map(key => ({
+                uid: key,
+                ...data[key]
+            }));
+
+
+            users.sort((a, b) => b.points - a.points);
+
+            users.forEach((user, index) => {
+                const isCurrentUser = this.user && this.user.uid === user.uid;
+                const tr = document.createElement('tr');
+                if (isCurrentUser) tr.className = 'current-user-row';
+
+                tr.innerHTML = `
+                    <td><span class="rank-badge">#${index + 1}</span></td>
+                    <td>
+                        <div class="student-info">
+                            <img src="${user.photoURL || 'https://ui-avatars.com/api/?name=' + user.name}" class="student-avatar" alt="Avatar">
+                            <span>${user.name} ${isCurrentUser ? '(You)' : ''}</span>
+                        </div>
+                    </td>
+                    <td style="text-align: right; font-weight: bold; color: var(--primary-color);">${user.points.toLocaleString()} pts</td>
+                `;
+                list.appendChild(tr);
+            });
+        });
     },
 
     renderDashboard() {
@@ -723,6 +1100,20 @@ const APP = {
         const task = DATA_STORE.data.tasks.find(t => t.id === id);
         if (task) {
             task.isCompleted = !task.isCompleted;
+
+            // Points Logic
+            if (task.isCompleted) {
+                const subject = DATA_STORE.data.subjects.find(s => s.id === task.subjectId);
+                let points = 10;
+                if (subject && subject.priority === 'High') points = 20;
+                DATA_STORE.updatePoints(points);
+            } else {
+                const subject = DATA_STORE.data.subjects.find(s => s.id === task.subjectId);
+                let points = 10;
+                if (subject && subject.priority === 'High') points = 20;
+                DATA_STORE.updatePoints(-points);
+            }
+
             DATA_STORE.save();
             const activeFilter = document.querySelector('.filter-btn.active').dataset.filter || 'all';
             this.renderTasksList(activeFilter);
