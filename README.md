@@ -89,4 +89,4 @@ If you want to run this project on your own machine:
 
 ---
 
-Made with ❤️ by [Lakshit Raina](https://github.com/lakshitraina)
+Made with ❤️ by [Lakshit Raina](https://github.com/lakshitraina).
